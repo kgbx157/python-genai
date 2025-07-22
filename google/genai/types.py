@@ -8298,7 +8298,7 @@ class TunedModel(_common.BaseModel):
 
   model: Optional[str] = Field(
       default=None,
-      description="""Output only. The resource name of the TunedModel. Format: `projects/{project}/locations/{location}/models/{model}`.""",
+      description="""Output only. The resource name of the TunedModel. Format: `projects/{project}/locations/{location}/models/{model}@{version_id}` When tuning from a base model, the version_id will be 1. For continuous tuning, the version id will be incremented by 1 from the last version id in the parent model. E.g., `projects/{project}/locations/{location}/models/{model}@{last_version_id + 1}`""",
   )
   endpoint: Optional[str] = Field(
       default=None,
@@ -8315,7 +8315,7 @@ class TunedModel(_common.BaseModel):
 class TunedModelDict(TypedDict, total=False):
 
   model: Optional[str]
-  """Output only. The resource name of the TunedModel. Format: `projects/{project}/locations/{location}/models/{model}`."""
+  """Output only. The resource name of the TunedModel. Format: `projects/{project}/locations/{location}/models/{model}@{version_id}` When tuning from a base model, the version_id will be 1. For continuous tuning, the version id will be incremented by 1 from the last version id in the parent model. E.g., `projects/{project}/locations/{location}/models/{model}@{last_version_id + 1}`"""
 
   endpoint: Optional[str]
   """Output only. A resource name of an Endpoint. Format: `projects/{project}/locations/{location}/endpoints/{endpoint}`."""
@@ -8372,6 +8372,37 @@ class GoogleRpcStatusDict(TypedDict, total=False):
 
 
 GoogleRpcStatusOrDict = Union[GoogleRpcStatus, GoogleRpcStatusDict]
+
+
+class PreTunedModel(_common.BaseModel):
+
+  tuned_model_name: Optional[str] = Field(
+      default=None,
+      description="""The resource name of the Model. E.g., a model resource name with a specified version id or alias: `projects/{project}/locations/{location}/models/{model}@{version_id}` `projects/{project}/locations/{location}/models/{model}@{alias}` Or, omit the version id to use the default version: `projects/{project}/locations/{location}/models/{model}`""",
+  )
+  checkpoint_id: Optional[str] = Field(
+      default=None,
+      description="""The source checkpoint id. If not specified, the default checkpoint will be used.""",
+  )
+  base_model: Optional[str] = Field(
+      default=None,
+      description="""Output only. The name of the base model this PreTunedModel was tuned from.""",
+  )
+
+
+class PreTunedModelDict(TypedDict, total=False):
+
+  tuned_model_name: Optional[str]
+  """The resource name of the Model. E.g., a model resource name with a specified version id or alias: `projects/{project}/locations/{location}/models/{model}@{version_id}` `projects/{project}/locations/{location}/models/{model}@{alias}` Or, omit the version id to use the default version: `projects/{project}/locations/{location}/models/{model}`"""
+
+  checkpoint_id: Optional[str]
+  """The source checkpoint id. If not specified, the default checkpoint will be used."""
+
+  base_model: Optional[str]
+  """Output only. The name of the base model this PreTunedModel was tuned from."""
+
+
+PreTunedModelOrDict = Union[PreTunedModel, PreTunedModelDict]
 
 
 class SupervisedHyperParameters(_common.BaseModel):
@@ -9083,6 +9114,9 @@ class TuningJob(_common.BaseModel):
       default=None,
       description="""Output only. The tuned model resources associated with this TuningJob.""",
   )
+  pre_tuned_model: Optional[PreTunedModel] = Field(
+      default=None, description="""The pre-tuned model for continuous tuning."""
+  )
   supervised_tuning_spec: Optional[SupervisedTuningSpec] = Field(
       default=None, description="""Tuning Spec for Supervised Fine Tuning."""
   )
@@ -9174,6 +9208,9 @@ class TuningJobDict(TypedDict, total=False):
 
   tuned_model: Optional[TunedModelDict]
   """Output only. The tuned model resources associated with this TuningJob."""
+
+  pre_tuned_model: Optional[PreTunedModelDict]
+  """The pre-tuned model for continuous tuning."""
 
   supervised_tuning_spec: Optional[SupervisedTuningSpecDict]
   """Tuning Spec for Supervised Fine Tuning."""
@@ -9410,6 +9447,10 @@ class CreateTuningJobConfig(_common.BaseModel):
       default=None,
       description="""If set to true, disable intermediate checkpoints for SFT and only the last checkpoint will be exported. Otherwise, enable intermediate checkpoints for SFT.""",
   )
+  pre_tuned_model_checkpoint_id: Optional[str] = Field(
+      default=None,
+      description="""The optional checkpoint id of the pre-tuned model to use for tuning, if applicable. TODO(ayushagra): Need to add checks so that this is ignored if a pre-tuned model is not provided.""",
+  )
   adapter_size: Optional[AdapterSize] = Field(
       default=None, description="""Adapter size for tuning."""
   )
@@ -9447,6 +9488,9 @@ class CreateTuningJobConfigDict(TypedDict, total=False):
   export_last_checkpoint_only: Optional[bool]
   """If set to true, disable intermediate checkpoints for SFT and only the last checkpoint will be exported. Otherwise, enable intermediate checkpoints for SFT."""
 
+  pre_tuned_model_checkpoint_id: Optional[str]
+  """The optional checkpoint id of the pre-tuned model to use for tuning, if applicable. TODO(ayushagra): Need to add checks so that this is ignored if a pre-tuned model is not provided."""
+
   adapter_size: Optional[AdapterSize]
   """Adapter size for tuning."""
 
@@ -9469,6 +9513,9 @@ class _CreateTuningJobParameters(_common.BaseModel):
       default=None,
       description="""The base model that is being tuned, e.g., "gemini-1.0-pro-002".""",
   )
+  pre_tuned_model: Optional[PreTunedModel] = Field(
+      default=None, description="""The PreTunedModel that is being tuned."""
+  )
   training_dataset: Optional[TuningDataset] = Field(
       default=None,
       description="""Cloud Storage path to file containing training dataset for tuning. The dataset must be formatted as a JSONL file.""",
@@ -9483,6 +9530,9 @@ class _CreateTuningJobParametersDict(TypedDict, total=False):
 
   base_model: Optional[str]
   """The base model that is being tuned, e.g., "gemini-1.0-pro-002"."""
+
+  pre_tuned_model: Optional[PreTunedModelDict]
+  """The PreTunedModel that is being tuned."""
 
   training_dataset: Optional[TuningDatasetDict]
   """Cloud Storage path to file containing training dataset for tuning. The dataset must be formatted as a JSONL file."""
@@ -11774,6 +11824,22 @@ class SubjectReferenceImage(_common.BaseModel):
       raise ValueError('Cannot set internal reference_type field directly.')
     values['reference_type'] = 'REFERENCE_TYPE_SUBJECT'
     return values
+
+
+class _CreateTuningJobParametersPublic(_common.BaseModel):
+  """Supervised fine-tuning job creation public-facing parameters - optional fields."""
+
+  base_model: Optional[str] = Field(
+      default=None,
+      description="""The base model that is being tuned, e.g., "gemini-1.0-pro-002".""",
+  )
+  training_dataset: Optional[TuningDataset] = Field(
+      default=None,
+      description="""Cloud Storage path to file containing training dataset for tuning. The dataset must be formatted as a JSONL file.""",
+  )
+  config: Optional[CreateTuningJobConfig] = Field(
+      default=None, description="""Configuration for the tuning job."""
+  )
 
 
 class SubjectReferenceImageDict(TypedDict, total=False):

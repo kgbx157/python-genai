@@ -86,6 +86,25 @@ def _ListTuningJobsParameters_to_mldev(
   return to_object
 
 
+def _PreTunedModel_to_mldev(
+    from_object: Union[dict[str, Any], object],
+    parent_object: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+  to_object: dict[str, Any] = {}
+  if getv(from_object, ['tuned_model_name']) is not None:
+    raise ValueError(
+        'tuned_model_name parameter is not supported in Gemini API.'
+    )
+
+  if getv(from_object, ['checkpoint_id']) is not None:
+    raise ValueError('checkpoint_id parameter is not supported in Gemini API.')
+
+  if getv(from_object, ['base_model']) is not None:
+    raise ValueError('base_model parameter is not supported in Gemini API.')
+
+  return to_object
+
+
 def _TuningExample_to_mldev(
     from_object: Union[dict[str, Any], object],
     parent_object: Optional[dict[str, Any]] = None,
@@ -166,6 +185,12 @@ def _CreateTuningJobConfig_to_mldev(
         'export_last_checkpoint_only parameter is not supported in Gemini API.'
     )
 
+  if getv(from_object, ['pre_tuned_model_checkpoint_id']) is not None:
+    raise ValueError(
+        'pre_tuned_model_checkpoint_id parameter is not supported in Gemini'
+        ' API.'
+    )
+
   if getv(from_object, ['adapter_size']) is not None:
     raise ValueError('adapter_size parameter is not supported in Gemini API.')
 
@@ -193,6 +218,15 @@ def _CreateTuningJobParameters_to_mldev(
   to_object: dict[str, Any] = {}
   if getv(from_object, ['base_model']) is not None:
     setv(to_object, ['baseModel'], getv(from_object, ['base_model']))
+
+  if getv(from_object, ['pre_tuned_model']) is not None:
+    setv(
+        to_object,
+        ['preTunedModel'],
+        _PreTunedModel_to_mldev(
+            getv(from_object, ['pre_tuned_model']), to_object
+        ),
+    )
 
   if getv(from_object, ['training_dataset']) is not None:
     setv(
@@ -266,6 +300,23 @@ def _ListTuningJobsParameters_to_vertex(
             getv(from_object, ['config']), to_object
         ),
     )
+
+  return to_object
+
+
+def _PreTunedModel_to_vertex(
+    from_object: Union[dict[str, Any], object],
+    parent_object: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+  to_object: dict[str, Any] = {}
+  if getv(from_object, ['tuned_model_name']) is not None:
+    setv(to_object, ['tunedModelName'], getv(from_object, ['tuned_model_name']))
+
+  if getv(from_object, ['checkpoint_id']) is not None:
+    setv(to_object, ['checkpointId'], getv(from_object, ['checkpoint_id']))
+
+  if getv(from_object, ['base_model']) is not None:
+    setv(to_object, ['baseModel'], getv(from_object, ['base_model']))
 
   return to_object
 
@@ -359,6 +410,13 @@ def _CreateTuningJobConfig_to_vertex(
         getv(from_object, ['export_last_checkpoint_only']),
     )
 
+  if getv(from_object, ['pre_tuned_model_checkpoint_id']) is not None:
+    setv(
+        parent_object,
+        ['preTunedModel', 'checkpointId'],
+        getv(from_object, ['pre_tuned_model_checkpoint_id']),
+    )
+
   if getv(from_object, ['adapter_size']) is not None:
     setv(
         parent_object,
@@ -382,6 +440,15 @@ def _CreateTuningJobParameters_to_vertex(
   to_object: dict[str, Any] = {}
   if getv(from_object, ['base_model']) is not None:
     setv(to_object, ['baseModel'], getv(from_object, ['base_model']))
+
+  if getv(from_object, ['pre_tuned_model']) is not None:
+    setv(
+        to_object,
+        ['preTunedModel'],
+        _PreTunedModel_to_vertex(
+            getv(from_object, ['pre_tuned_model']), to_object
+        ),
+    )
 
   if getv(from_object, ['training_dataset']) is not None:
     setv(
@@ -649,6 +716,9 @@ def _TuningJob_from_vertex(
         _TunedModel_from_vertex(getv(from_object, ['tunedModel']), to_object),
     )
 
+  if getv(from_object, ['preTunedModel']) is not None:
+    setv(to_object, ['pre_tuned_model'], getv(from_object, ['preTunedModel']))
+
   if getv(from_object, ['supervisedTuningSpec']) is not None:
     setv(
         to_object,
@@ -875,7 +945,8 @@ class Tunings(_api_module.BaseModule):
   def _tune(
       self,
       *,
-      base_model: str,
+      base_model: Optional[str] = None,
+      pre_tuned_model: Optional[types.PreTunedModelOrDict] = None,
       training_dataset: types.TuningDatasetOrDict,
       config: Optional[types.CreateTuningJobConfigOrDict] = None,
   ) -> types.TuningJob:
@@ -892,6 +963,7 @@ class Tunings(_api_module.BaseModule):
 
     parameter_model = types._CreateTuningJobParameters(
         base_model=base_model,
+        pre_tuned_model=pre_tuned_model,
         training_dataset=training_dataset,
         config=config,
     )
@@ -944,7 +1016,8 @@ class Tunings(_api_module.BaseModule):
   def _tune_mldev(
       self,
       *,
-      base_model: str,
+      base_model: Optional[str] = None,
+      pre_tuned_model: Optional[types.PreTunedModelOrDict] = None,
       training_dataset: types.TuningDatasetOrDict,
       config: Optional[types.CreateTuningJobConfigOrDict] = None,
   ) -> types.TuningOperation:
@@ -961,6 +1034,7 @@ class Tunings(_api_module.BaseModule):
 
     parameter_model = types._CreateTuningJobParameters(
         base_model=base_model,
+        pre_tuned_model=pre_tuned_model,
         training_dataset=training_dataset,
         config=config,
     )
@@ -1052,11 +1126,35 @@ class Tunings(_api_module.BaseModule):
       config: Optional[types.CreateTuningJobConfigOrDict] = None,
   ) -> types.TuningJob:
     if self._api_client.vertexai:
-      tuning_job = self._tune(
-          base_model=base_model,
-          training_dataset=training_dataset,
-          config=config,
-      )
+      """To support pre-tuned models:
+
+      (1) Check if passed model is formatted as a pre-tuned model or is a base
+      model.
+      (2a) If not, continue as earlier.
+      (2b) If it is, wrap in a pre-tuned model object, and pass to private tune
+      method.
+      """
+      if base_model.startswith('projects/'):  # Pre-tuned model
+        pre_tuned_model = types.PreTunedModel(tuned_model_name=base_model)
+        # if specified in config, checkpoint id is automatically populated
+        # in converters (TODO remove this comment later)
+        tuning_job = self._tune(
+            pre_tuned_model=pre_tuned_model,
+            training_dataset=training_dataset,
+            config=config,
+        )
+      else:
+        # there's a chance that this may just be a redundant statement, check later
+        if (
+            config is not None
+            and config.pre_tuned_model_checkpoint_id is not None
+        ):
+          config.pre_tuned_model_checkpoint_id = None
+        tuning_job = self._tune(
+            base_model=base_model,
+            training_dataset=training_dataset,
+            config=config,
+        )
     else:
       operation = self._tune_mldev(
           base_model=base_model,
@@ -1227,7 +1325,8 @@ class AsyncTunings(_api_module.BaseModule):
   async def _tune(
       self,
       *,
-      base_model: str,
+      base_model: Optional[str] = None,
+      pre_tuned_model: Optional[types.PreTunedModelOrDict] = None,
       training_dataset: types.TuningDatasetOrDict,
       config: Optional[types.CreateTuningJobConfigOrDict] = None,
   ) -> types.TuningJob:
@@ -1244,6 +1343,7 @@ class AsyncTunings(_api_module.BaseModule):
 
     parameter_model = types._CreateTuningJobParameters(
         base_model=base_model,
+        pre_tuned_model=pre_tuned_model,
         training_dataset=training_dataset,
         config=config,
     )
@@ -1296,7 +1396,8 @@ class AsyncTunings(_api_module.BaseModule):
   async def _tune_mldev(
       self,
       *,
-      base_model: str,
+      base_model: Optional[str] = None,
+      pre_tuned_model: Optional[types.PreTunedModelOrDict] = None,
       training_dataset: types.TuningDatasetOrDict,
       config: Optional[types.CreateTuningJobConfigOrDict] = None,
   ) -> types.TuningOperation:
@@ -1313,6 +1414,7 @@ class AsyncTunings(_api_module.BaseModule):
 
     parameter_model = types._CreateTuningJobParameters(
         base_model=base_model,
+        pre_tuned_model=pre_tuned_model,
         training_dataset=training_dataset,
         config=config,
     )
@@ -1404,11 +1506,34 @@ class AsyncTunings(_api_module.BaseModule):
       config: Optional[types.CreateTuningJobConfigOrDict] = None,
   ) -> types.TuningJob:
     if self._api_client.vertexai:
-      tuning_job = await self._tune(
-          base_model=base_model,
-          training_dataset=training_dataset,
-          config=config,
-      )
+      """To support pre-tuned models:
+
+      (1) Check if passed model is formatted as a pre-tuned model or is a base
+      model.
+      (2a) If not, continue as earlier.
+      (2b) If it is, wrap in a pre-tuned model object, and pass to private tune
+      method.
+      """
+      if base_model.startswith('projects/'):  # Pre-tuned model
+        pre_tuned_model = types.PreTunedModel(tuned_model_name=base_model)
+
+        tuning_job = await self._tune(
+            pre_tuned_model=pre_tuned_model,
+            training_dataset=training_dataset,
+            config=config,
+        )
+      else:
+        if (
+            config is not None
+            and config.pre_tuned_model_checkpoint_id is not None
+        ):
+          config.pre_tuned_model_checkpoint_id = None
+
+        tuning_job = await self._tune(
+            base_model=base_model,
+            training_dataset=training_dataset,
+            config=config,
+        )
     else:
       operation = await self._tune_mldev(
           base_model=base_model,
