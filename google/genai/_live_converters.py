@@ -411,9 +411,6 @@ def _Tool_to_mldev(
   if getv(from_object, ['code_execution']) is not None:
     setv(to_object, ['codeExecution'], getv(from_object, ['code_execution']))
 
-  if getv(from_object, ['computer_use']) is not None:
-    setv(to_object, ['computerUse'], getv(from_object, ['computer_use']))
-
   return to_object
 
 
@@ -1487,6 +1484,8 @@ def _EnterpriseWebSearch_to_vertex(
     parent_object: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
   to_object: dict[str, Any] = {}
+  if getv(from_object, ['exclude_domains']) is not None:
+    setv(to_object, ['excludeDomains'], getv(from_object, ['exclude_domains']))
 
   return to_object
 
@@ -1553,6 +1552,9 @@ def _GoogleMaps_to_vertex(
         ['authConfig'],
         _AuthConfig_to_vertex(getv(from_object, ['auth_config']), to_object),
     )
+
+  if getv(from_object, ['api_auth']) is not None:
+    setv(to_object, ['apiAuth'], getv(from_object, ['api_auth']))
 
   return to_object
 
@@ -1627,9 +1629,6 @@ def _Tool_to_vertex(
 
   if getv(from_object, ['code_execution']) is not None:
     setv(to_object, ['codeExecution'], getv(from_object, ['code_execution']))
-
-  if getv(from_object, ['computer_use']) is not None:
-    setv(to_object, ['computerUse'], getv(from_object, ['computer_use']))
 
   return to_object
 
